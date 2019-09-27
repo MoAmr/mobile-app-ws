@@ -8,6 +8,7 @@ import com.appsdevblog.app.ws.domain_response.UserRest;
 import com.appsdevblog.app.ws.exception.UserServiceException;
 import com.appsdevblog.app.ws.service.UserService;
 import com.appsdevblog.app.ws.shared_dto.UserDto;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -45,11 +46,15 @@ public class UserController {
         if (userDetails.getFirstName().isEmpty())
             throw new UserServiceException(ErrorMessages.MISSING_REQUIRED_FIELD.getErrorMessage());
 
-        UserDto userDto = new UserDto();
-        BeanUtils.copyProperties(userDetails, userDto);
+        //UserDto userDto = new UserDto();
+        //BeanUtils.copyProperties(userDetails, userDto);
+
+        /** Another better way to map objects from source object to destination object */
+        ModelMapper modelMapper = new ModelMapper();
+        UserDto userDto = modelMapper.map(userDetails, UserDto.class);
 
         UserDto createdUser = userService.createUser(userDto);
-        BeanUtils.copyProperties(createdUser, returnedValue);
+        returnedValue = modelMapper.map(createdUser, UserRest.class);
 
         return returnedValue;
     }
