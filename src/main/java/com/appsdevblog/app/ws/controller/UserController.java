@@ -1,19 +1,20 @@
 package com.appsdevblog.app.ws.controller;
 
 import com.appsdevblog.app.ws.domain_request.UserDetails;
-import com.appsdevblog.app.ws.domain_response.ErrorMessages;
-import com.appsdevblog.app.ws.domain_response.OperationStatusModel;
-import com.appsdevblog.app.ws.domain_response.RequestOperationStatus;
-import com.appsdevblog.app.ws.domain_response.UserRest;
+import com.appsdevblog.app.ws.domain_response.*;
 import com.appsdevblog.app.ws.exception.UserServiceException;
+import com.appsdevblog.app.ws.service.AddressService;
 import com.appsdevblog.app.ws.service.UserService;
+import com.appsdevblog.app.ws.shared_dto.AddressDTO;
 import com.appsdevblog.app.ws.shared_dto.UserDto;
 import org.modelmapper.ModelMapper;
+import org.modelmapper.TypeToken;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,6 +24,9 @@ public class UserController {
 
     @Autowired
     UserService userService;
+
+    @Autowired
+    AddressService addressService;
 
     @GetMapping(path = "/{id}", produces = {MediaType.APPLICATION_XML_VALUE, MediaType.APPLICATION_JSON_VALUE})
     public UserRest getUser(@PathVariable String id) {
@@ -107,5 +111,34 @@ public class UserController {
         }
 
         return returnedValue;
+    }
+
+    //localhost:8080/mobile-app-ws/users/89Pp4k8ceIah168rlbex7C6k9yfqw2/addresses
+    @GetMapping(path = "/{id}/addresses",
+            produces = {MediaType.APPLICATION_XML_VALUE, MediaType.APPLICATION_JSON_VALUE})
+    public List<AddressesRest> getUserAddresses(@PathVariable String id) {
+
+        List<AddressesRest> returnedValue = new ArrayList<>();
+
+        List<AddressDTO> addressDTO = addressService.getAddresses(id);
+
+        if (addressDTO != null && !addressDTO.isEmpty()) {
+            Type listType = new TypeToken<List<AddressesRest>>() {
+            }.getType();
+            returnedValue = new ModelMapper().map(addressDTO, listType);
+        }
+
+        return returnedValue;
+    }
+
+    @GetMapping(path = "/{userId}/addresses/{addressId}", produces = {
+            MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_ATOM_XML_VALUE})
+    public AddressesRest getUserAddress(@PathVariable String addressId) {
+
+        AddressDTO addressDTO = addressService.getAddress(addressId);
+
+        ModelMapper modelMapper = new ModelMapper();
+
+        return modelMapper.map(addressDTO, AddressesRest.class);
     }
 }
