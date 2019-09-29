@@ -11,6 +11,9 @@ import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.Resource;
+import org.springframework.hateoas.Resources;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,8 +21,11 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
+import static org.springframework.hateoas.mvc.ControllerLinkBuilder.methodOn;
+
 @RestController
-@RequestMapping("users")
+@RequestMapping("/users")
 public class UserController {
 
     @Autowired
@@ -114,31 +120,72 @@ public class UserController {
     }
 
     //localhost:8080/mobile-app-ws/users/89Pp4k8ceIah168rlbex7C6k9yfqw2/addresses
-    @GetMapping(path = "/{id}/addresses",
-            produces = {MediaType.APPLICATION_XML_VALUE, MediaType.APPLICATION_JSON_VALUE})
-    public List<AddressesRest> getUserAddresses(@PathVariable String id) {
 
-        List<AddressesRest> returnedValue = new ArrayList<>();
+    /**
+     * Applying HAL Format using Resources<> class of org.springframework.hateoas
+     */
+
+    @GetMapping(path = "/{id}/addresses",
+            produces = {MediaType.APPLICATION_XML_VALUE, MediaType.APPLICATION_JSON_VALUE,
+                    "application/hal+json"})
+    public Resources<AddressesRest> getUserAddresses(@PathVariable String id) {
+
+        List<AddressesRest> addressesListRestModel = new ArrayList<>();
 
         List<AddressDTO> addressDTO = addressService.getAddresses(id);
 
         if (addressDTO != null && !addressDTO.isEmpty()) {
             Type listType = new TypeToken<List<AddressesRest>>() {
             }.getType();
-            returnedValue = new ModelMapper().map(addressDTO, listType);
+            addressesListRestModel = new ModelMapper().map(addressDTO, listType);
+
+            for (AddressesRest addressesRest : addressesListRestModel) {
+
+                Link addressLink = linkTo(methodOn(UserController.class).getUserAddress(id,
+                        addressesRest.getAddressId())).withSelfRel();
+                addressesRest.add(addressLink);
+
+                Link userLink = linkTo(methodOn(UserController.class).getUser(id)).withRel("user");
+                addressesRest.add(userLink);
+            }
         }
 
-        return returnedValue;
+        return new Resources<>(addressesListRestModel);
     }
 
+    /** Applying HAL Format using Resource<> class of org.springframework.hateoas */
+
     @GetMapping(path = "/{userId}/addresses/{addressId}", produces = {
-            MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_ATOM_XML_VALUE})
-    public AddressesRest getUserAddress(@PathVariable String addressId) {
+            MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_ATOM_XML_VALUE,
+            "application/hal+json"})
+    public Resource<AddressesRest> getUserAddress(@PathVariable String userId, @PathVariable String addressId) {
 
         AddressDTO addressDTO = addressService.getAddress(addressId);
 
         ModelMapper modelMapper = new ModelMapper();
 
-        return modelMapper.map(addressDTO, AddressesRest.class);
+        /** Adding HATEOAS links for single address - list of addresses - user to include
+         * links in returned response JSON object */
+
+        /** methodOn method here inspects the UserController and then inspects the
+         * getUserAddresses mapping adn helps linkTo method to build its link and
+         * the correct path url that getUserAddress method requires without the
+         * need to hardcode the "addresses" to the path url */
+
+        /** withSelfRel() here associates a relation between the addressLink and itself
+         * on the other hand, withRel() associates a relation between the hardcoded keyword
+         * "user" ---> userLink, and "addresses" ---> addressesLink */
+
+        Link addressLink = linkTo(methodOn(UserController.class).getUserAddress(userId, addressId)).withSelfRel();
+        Link userLink = linkTo(UserController.class).slash(userId).withRel("user");
+        Link addressesLink = linkTo(methodOn(UserController.class).getUserAddresses(userId)).withRel("addresses");
+
+        AddressesRest addressesRestModel = modelMapper.map(addressDTO, AddressesRest.class);
+
+        addressesRestModel.add(addressLink);
+        addressesRestModel.add(userLink);
+        addressesRestModel.add(addressesLink);
+
+        return new Resource<>(addressesRestModel);
     }
 }
