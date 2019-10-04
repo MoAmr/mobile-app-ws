@@ -1,8 +1,15 @@
 package com.appsdevblog.app.ws.shared;
 
+import com.appsdevblog.app.ws.security.SecurityConstants;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.impl.TextCodec;
 import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;
+import java.util.Date;
 import java.util.Random;
 
 @Component
@@ -27,5 +34,37 @@ public class Utils {
         }
 
         return new String(returnValue);
+    }
+
+    public static boolean hasTokenExpired(String token) {
+
+        boolean returnedValue = false;
+
+        try {
+            Claims claims = Jwts.parser()
+                    .setSigningKey(SecurityConstants.getTokenSecret())
+                    .parseClaimsJws(token).getBody();
+
+            Date tokenExpirationDate = claims.getExpiration();
+            Date currentDate = new Date();
+
+            returnedValue = tokenExpirationDate.before(currentDate);
+        } catch (ExpiredJwtException ex) {
+            returnedValue = true;
+        }
+
+        return returnedValue;
+    }
+
+    public String generateEmailVerificationToken(String userId) {
+
+        SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.HS256;
+        String token = Jwts.builder()
+                .setSubject(userId)
+                .setExpiration(new Date(System.currentTimeMillis() + SecurityConstants.EXPIRATION_TIME))
+                .signWith(signatureAlgorithm, TextCodec.BASE64.decode(SecurityConstants.getTokenSecret()))
+                .compact();
+
+        return token;
     }
 }
