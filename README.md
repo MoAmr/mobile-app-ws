@@ -3,6 +3,12 @@
 
 --------------------------------------------------------------------------
 
+#Postman Collection REST APIs Requests:
+
+https://www.getpostman.com/collections/c0f8b24367c8c31dd63e
+
+--------------------------------------------------------------------------
+
 How to clean your project?
 
 # mvn clean
